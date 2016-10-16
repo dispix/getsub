@@ -1,0 +1,22 @@
+{
+  "name": "subtitles",
+  "version": "0.1.0",
+  "description": "Fetch subtitles from open-subtitles",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "standard"
+  },
+  "standard": {
+    "globals": [],
+    "ignore": [
+      "/node_modules"
+    ]
+  },
+  "author": "Octave Raimbault <dispyx@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "opensubtitles-api": "^3.3.0",
+    "xmlhttprequest": "^1.8.0"
+  }
+}
