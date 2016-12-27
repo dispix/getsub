@@ -1,57 +1,80 @@
-const fs = require('fs')
 const path = require('path')
-const OpenSubtitlesApi = require('opensubtitles-api')
-const { XMLHttpRequest } = require('xmlhttprequest')
+const argv = require('minimist')(process.argv.slice(2))
 
-// Available languages
-const languages = new Map([
-  ['fr', 'fre'],
-  ['en', 'eng']
-])
+const Fetcher = require('./src/fetcher')
+const Handler = require('./src/handler')
+const credentials = require('./src/credentials')
+const languages = require('./src/languages')
 
-// Handling arguments
-const source = process.argv[2].split('/')
-const lang = languages.has(process.argv[3]) ? process.argv[3] : 'en'
-const dest = process.argv[4] || source.slice(0, source.length - 1).join('/')
+// If the help argument is specify, returns the documentation
+if (argv.h || argv.help) {
+  console.log(`
+    usage: getsub <file> [options]
+    options:
+    [--dest | -d <destination>]   Directory path for the subtitle, defaults to same directory as the source
+    [--lang | -l <language>]      Specifies the language for the subtitle. Defaults to 'eng', available languages:
+        - ${languages.join('\n\t- ')}
+  `)
+  process.exit()
+}
 
-// Building subtitle name
-let filename = source[source.length - 1]
-filename = filename.slice(0, filename.lastIndexOf('.')) + '.srt'
+// Exit if no file is specified
+if (!argv._[0]) {
+  console.error('Error: No file specified')
+  process.exit()
+}
 
-// Creating new api
-const api = new OpenSubtitlesApi({
-  useragent: 'OSTestUserAgentTemp'
-})
+// Gathering arguments
+const source = path.resolve(process.cwd(), argv._[0])
+const filepath = source.slice(0, source.lastIndexOf('/'))
+// File name *without the extension*
+const filename = source.slice(source.lastIndexOf('/') + 1).substring(0, source.lastIndexOf('.'))
+const lang = argv.lang || argv.l || 'eng'
 
-// Search for the subtitle with the api, using the filepath as research parameter
-api.search({
-  sublanguageid: languages.get(lang),
-  extensions: ['srt'],
-  limit: '1',
-  path: source.join('/')
-})
-  .then((subs) => {
-    if (subs[lang] === undefined) {
-      console.warn('No subtitle found for this file.')
-      return
+// Exit if language is not recognized
+if (languages.indexOf(lang)) {
+  console.error(`Error: This language is not recognized. Available languages:
+        - ${languages.join('\n\t- ')}
+    `)
+  process.exit()
+}
+
+/**
+ *  Get the filepath for saving the subtitles
+ *  @method  getDest
+ *  @return  {String}  Absolute filepath, ex: `/Users/Me/Desktop/subtitles.srt`
+ */
+const getDest = () => {
+  if (argv.dest) {
+    return `${argv.dest}/${filename}.srt`
+  }
+
+  if (argv.d) {
+    return `${argv.d}/${filename}.srt`
+  }
+
+  // Defaults to same directory as source file
+  return `${filepath}/${filename}.srt`
+}
+
+const dest = getDest()
+const fetcher = new Fetcher(credentials)
+
+console.log(`
+  Fetching subtitle...
+  - File: ${filename}
+  - Language: ${lang}
+`)
+
+fetcher.search(source, lang)
+  .mergeMap(text => Handler.save(text, dest))
+  .subscribe(
+    () => {
+      console.log(`Subtitle saved to ${dest}`)
+      process.exit()
+    },
+    err => {
+      console.error(err)
+      process.exit(1)
     }
-
-    // Initiating new XHR call if an url is available
-    const xhr = new XMLHttpRequest()
-
-    // Save subtitle after the XHR call has ended
-    xhr.onreadystatechange = () => {
-      if (xhr.readyState === 4 && xhr.status === 200) {
-        fs.writeFile(path.join(dest, filename), xhr.responseText, (err) => {
-          if (err) throw err
-
-          console.log('Subtitles downloaded succesfuly.')
-          return
-        })
-      }
-    }
-
-    xhr.open('GET', subs[lang][0].url)
-    xhr.send()
-  })
-  .catch((err) => console.error(err))
+  )
