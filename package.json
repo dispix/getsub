@@ -16,7 +16,7 @@
   "author": "Octave Raimbault <dispyx@gmail.com>",
   "license": "ISC",
   "dependencies": {
+    "node-fetch": "^2.2.0",
     "opensubtitles-api": "^3.5.0",
-    "xmlhttprequest": "^1.8.0"
   }
 }
