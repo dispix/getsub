@@ -17,6 +17,6 @@
   "license": "ISC",
   "dependencies": {
     "node-fetch": "^2.2.0",
-    "opensubtitles-api": "^3.5.0",
+    "opensubtitles-api": "^3.5.0"
   }
 }
